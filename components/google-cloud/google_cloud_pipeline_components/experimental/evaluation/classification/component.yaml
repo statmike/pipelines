@@ -70,6 +70,19 @@ description: |
       example_weight_column (Optional[str]):
           Optional. The column name of the field containing example weights.
           Formatted to be able to find nested columns, delimited by `.`.
+      slicing_specs (Optional[Sequence[SlicingSpec]]):
+          Optional. List of google.cloud.aiplatform_v1.types.ModelEvaluationSlice.SlicingSpec.
+          When provided, compute metrics for each defined slice.
+          First, format each SlicingSpec into a JSON.
+          Example: `slicing_spec_json = json_format.MessageToJson(slicing_spec)`.
+          Then, combine each slicing_spec JSON into a list.
+          Example: `slicing_specs.append(slicing_spec_json)`.
+          Then, turn the list of SlicingSpec's as JSONs into a string input.
+          Example: `slicing_specs_string = json.dumps(slicing_specs)`.
+          This string input will be the input to the component.
+          Example: ModelEvaluationClassificationOp(slicing_specs=slicing_specs_string)
+
+          For more details on configuring slices, see https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform_v1.types.ModelEvaluationSlice
       positive_classes (Optional[Sequence[str]]):
           Optional. The list of class names to create binary classification metrics based on
           one-vs-rest for each value of positive_classes provided.
@@ -120,6 +133,7 @@ inputs:
   - { name: prediction_label_column, type: String, default: "" }
   - { name: prediction_id_column, type: String, default: "" }
   - { name: example_weight_column, type: String, default: "" }
+  - { name: slicing_specs, type: JsonArray, default: "[]" , optional: True }
   - { name: positive_classes, type: JsonArray, default: "{}" }
   - { name: dataflow_service_account, type: String, default: "" }
   - { name: dataflow_disk_size, type: Integer, default: 50 }
@@ -134,7 +148,7 @@ outputs:
   - { name: gcp_resources, type: String }
 implementation:
   container:
-    image: gcr.io/ml-pipeline/model-evaluation:v0.8.1
+    image: gcr.io/ml-pipeline/model-evaluation:v0.9.0
     command:
       - python
       - /main.py
@@ -188,6 +202,11 @@ implementation:
       - { inputValue: prediction_id_column }
       - --example_weight_column
       - { inputValue: example_weight_column }
+      - if:
+          cond: {isPresent: slicing_specs}
+          then:
+          - --slicing_specs
+          - { inputValue: slicing_specs }
       - --positive_classes
       - { inputValue: positive_classes }
       - --dataflow_job_prefix
